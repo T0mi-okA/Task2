@@ -1,0 +1,214 @@
+Бина
+
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <algorithm>
+
+// Бинарная куча с использованием priority_queue
+void binaryHeapExample() {
+    std::cout << "=== БИНАРНАЯ КУЧА ===" << std::endl;
+    
+    // Создание мин-кучи
+    std::priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
+    
+    std::vector<int> data = {5, 3, 8, 1, 2, 7};
+    
+    // Добавление элементов
+    for (int item : data) {
+        minHeap.push(item);
+        std::cout << "Добавлен элемент: " << item << std::endl;
+    }
+    
+    std::cout << "Размер кучи: " << minHeap.size() << std::endl;
+    std::cout << "Минимальный элемент: " << minHeap.top() << std::endl;
+    
+    // Извлечение элементов
+    std::cout << "Извлечение элементов в порядке возрастания: ";
+    while (!minHeap.empty()) {
+        std::cout << minHeap.top() << " ";
+        minHeap.pop();
+    }
+    std::cout << std::endl;
+}
+
+// Узел биномиальной кучи
+struct BinomialNode {
+    int key;
+    int degree;
+    BinomialNode* parent;
+    BinomialNode* child;
+    BinomialNode* sibling;
+    
+    BinomialNode(int k) : key(k), degree(0), parent(nullptr), 
+                         child(nullptr), sibling(nullptr) {}
+};
+
+class BinomialHeap {
+private:
+    BinomialNode* head;
+    
+    BinomialNode* mergeHeaps(BinomialNode* h1, BinomialNode* h2) {
+        if (!h1) return h2;
+        if (!h2) return h1;
+        
+        BinomialNode* result = nullptr;
+        BinomialNode** lastPtr = &result;
+        
+        while (h1 && h2) {
+            if (h1->degree <= h2->degree) {
+                *lastPtr = h1;
+                h1 = h1->sibling;
+            } else {
+                *lastPtr = h2;
+                h2 = h2->sibling;
+            }
+            lastPtr = &((*lastPtr)->sibling);
+        }
+        
+        if (h1) *lastPtr = h1;
+        else *lastPtr = h2;
+        
+        return result;
+    }
+    
+    void linkTrees(BinomialNode* parent, BinomialNode* child) {
+        child->parent = parent;
+        child->sibling = parent->child;
+        parent->child = child;
+        parent->degree++;
+    }
+    
+public:
+    BinomialHeap() : head(nullptr) {}
+    
+    void insert(int key) {
+        BinomialHeap tempHeap;
+        tempHeap.head = new BinomialNode(key);
+        unionWith(tempHeap);
+    }
+    
+    void unionWith(BinomialHeap& other) {
+        head = mergeHeaps(head, other.head);
+        other.head = nullptr;
+        
+        if (!head) return;
+        
+        BinomialNode* prev = nullptr;
+        BinomialNode* curr = head;
+        BinomialNode* next = curr->sibling;
+        
+        while (next) {
+            if (curr->degree != next->degree || 
+                (next->sibling && next->sibling->degree == curr->degree)) {
+                prev = curr;
+                curr = next;
+            } else if (curr->key <= next->key) {
+                curr->sibling = next->sibling;
+                linkTrees(curr, next);
+            } else {
+                if (!prev) head = next;
+                else prev->sibling = next;
+                linkTrees(next, curr);
+                curr = next;
+            }
+            next = curr->sibling;
+        }
+    }
+    
+    int extractMin() {
+        if (!head) throw std::runtime_error("Куча пуста");
+        
+        // Находим минимальный узел
+        BinomialNode* minNode = head;
+        BinomialNode* minPrev = nullptr;
+        BinomialNode* curr = head->sibling;
+        BinomialNode* prev = head;
+        
+        while (curr) {
+            if (curr->key < minNode->key) {
+                minNode = curr;
+                minPrev = prev;
+            }
+            prev = curr;
+            curr = curr->sibling;
+        }
+        
+        // Удаляем минимальный узел
+        if (minPrev) minPrev->sibling = minNode->sibling;
+        else head = minNode->sibling;
+        
+        // Создаем кучу из детей
+        BinomialHeap childHeap;
+        BinomialNode* child = minNode->child;
+        while (child) {
+            BinomialNode* nextChild = child->sibling;
+            child->sibling = childHeap.head;
+            child->parent = nullptr;
+            childHeap.head = child;
+            child = nextChild;
+        }
+        
+        int minKey = minNode->key;
+        delete minNode;
+        
+        // Объединяем с основной кучей
+        unionWith(childHeap);
+        
+        return minKey;
+    }
+    
+    int findMin() {
+        if (!head) throw std::runtime_error("Куча пуста");
+        
+        int minKey = head->key;
+        BinomialNode* curr = head->sibling;
+        
+        while (curr) {
+            if (curr->key < minKey) minKey = curr->key;
+            curr = curr->sibling;
+        }
+        
+        return minKey;
+    }
+    
+    bool isEmpty() {
+        return head == nullptr;
+    }
+};
+
+void binomialHeapExample() {
+    std::cout << "\n=== БИНОМИАЛЬНАЯ КУЧА ===" << std::endl;
+    
+    BinomialHeap bh;
+    std::vector<int> elements = {10, 5, 15, 3, 7, 12, 1};
+    
+    std::cout << "Добавляем элементы: ";
+    for (int elem : elements) {
+        std::cout << elem << " ";
+        bh.insert(elem);
+    }
+    std::cout << std::endl;
+    
+    std::cout << "Минимальный элемент: " << bh.findMin() << std::endl;
+    
+    int minVal = bh.extractMin();
+    std::cout << "Извлечен минимальный элемент: " << minVal << std::endl;
+    std::cout << "Новый минимальный элемент: " << bh.findMin() << std::endl;
+    
+    bh.insert(2);
+    bh.insert(8);
+    std::cout << "После добавления 2 и 8, минимальный: " << bh.findMin() << std::endl;
+    
+    std::cout << "Извлекаем все элементы по порядку: ";
+    while (!bh.isEmpty()) {
+        std::cout << bh.extractMin() << " ";
+    }
+    std::cout << std::endl;
+}
+
+int main() {
+    binaryHeapExample();
+    binomialHeapExample();
+    return 0;
+}
