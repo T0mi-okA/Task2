@@ -1,102 +1,191 @@
 Бинарная куча
-
 #include <iostream>
 #include <vector>
-#include <queue>
+#include <stdexcept>
 #include <algorithm>
 
-// Бинарная куча с использованием priority_queue
-void binaryHeapExample() {
-    std::cout << "=== БИНАРНАЯ КУЧА ===" << std::endl;
-    
-    // Создание мин-кучи
-    std::priority_queue<int, std::vector<int>, std::greater<int>> minHeap;
-    
-    std::vector<int> data = {5, 3, 8, 1, 2, 7};
-    
-    // Добавление элементов
-    for (int item : data) {
-        minHeap.push(item);
-        std::cout << "Добавлен элемент: " << item << std::endl;
-    }
-    
-    std::cout << "Размер кучи: " << minHeap.size() << std::endl;
-    std::cout << "Минимальный элемент: " << minHeap.top() << std::endl;
-    
-    // Извлечение элементов
-    std::cout << "Извлечение элементов в порядке возрастания: ";
-    while (!minHeap.empty()) {
-        std::cout << minHeap.top() << " ";
-        minHeap.pop();
-    }
-    std::cout << std::endl;
-}
-
-// Узел биномиальной кучи
-struct BinomialNode {
-    int key;
-    int degree;
-    BinomialNode* parent;
-    BinomialNode* child;
-    BinomialNode* sibling;
-    
-    BinomialNode(int k) : key(k), degree(0), parent(nullptr), 
-                         child(nullptr), sibling(nullptr) {}
-};
-
-class BinomialHeap {
+template<typename T>
+class BinaryHeap {
 private:
-    BinomialNode* head;
+    std::vector<T> heap;
     
-    BinomialNode* mergeHeaps(BinomialNode* h1, BinomialNode* h2) {
-        if (!h1) return h2;
-        if (!h2) return h1;
+    // Вспомогательные функции
+    int parent(int i) { return (i - 1) / 2; }
+    int leftChild(int i) { return 2 * i + 1; }
+    int rightChild(int i) { return 2 * i + 2; }
+    
+    // Просеивание вверх (для добавления)
+    void siftUp(int i) {
+        while (i > 0 && heap[parent(i)] > heap[i]) {
+            std::swap(heap[i], heap[parent(i)]);
+            i = parent(i);
+        }
+    }
+    
+    // Просеивание вниз (для удаления)
+    void siftDown(int i) {
+        int minIndex = i;
+        int left = leftChild(i);
+        int right = rightChild(i);
         
-        BinomialNode* result = nullptr;
-        BinomialNode** lastPtr = &result;
-        
-        while (h1 && h2) {
-            if (h1->degree <= h2->degree) {
-                *lastPtr = h1;
-                h1 = h1->sibling;
-            } else {
-                *lastPtr = h2;
-                h2 = h2->sibling;
-            }
-            lastPtr = &((*lastPtr)->sibling);
+        if (left < heap.size() && heap[left] < heap[minIndex]) {
+            minIndex = left;
         }
         
-        if (h1) *lastPtr = h1;
-        else *lastPtr = h2;
+        if (right < heap.size() && heap[right] < heap[minIndex]) {
+            minIndex = right;
+        }
         
-        return result;
+        if (i != minIndex) {
+            std::swap(heap[i], heap[minIndex]);
+            siftDown(minIndex);
+        }
     }
-    
-    void linkTrees(BinomialNode* parent, BinomialNode* child) {
-        child->parent = parent;
-        child->sibling = parent->child;
-        parent->child = child;
-        parent->degree++;
-    }
-    
+
 public:
-    BinomialHeap() : head(nullptr) {}
+    BinaryHeap() = default;
     
-    void insert(int key) {
-        BinomialHeap tempHeap;
-        tempHeap.head = new BinomialNode(key);
-        unionWith(tempHeap);
+    // Добавление элемента
+    void insert(const T& value) {
+        heap.push_back(value);
+        siftUp(heap.size() - 1);
     }
     
-    void unionWith(BinomialHeap& other) {
-        head = mergeHeaps(head, other.head);
-        other.head = nullptr;
+    // Получение минимального элемента без удаления
+    T getMin() const {
+        if (heap.empty()) {
+            throw std::runtime_error("Heap is empty");
+        }
+        return heap[0];
+    }
+    
+    // Извлечение минимального элемента
+    T extractMin() {
+        if (heap.empty()) {
+            throw std::runtime_error("Heap is empty");
+        }
         
-        if (!head) return;
+        T minValue = heap[0];
+        heap[0] = heap.back();
+        heap.pop_back();
         
-        BinomialNode* prev = nullptr;
-        BinomialNode* curr = head;
-        BinomialNode* next = curr->sibling;
+        if (!heap.empty()) {
+            siftDown(0);
+        }
+        
+        return minValue;
+    }
+    
+    // Удаление конкретного элемента
+    void remove(int index) {
+        if (index < 0 || index >= heap.size()) {
+            throw std::out_of_range("Index out of range");
+        }
+        
+        // Устанавливаем элемент в минимально возможное значение
+        heap[index] = std::numeric_limits<T>::min();
+        siftUp(index);
+        
+        // Извлекаем минимальный (наш измененный элемент)
+        extractMin();
+    }
+    
+    // Удаление по значению (первое вхождение)
+    bool removeByValue(const T& value) {
+        auto it = std::find(heap.begin(), heap.end(), value);
+        if (it != heap.end()) {
+            int index = std::distance(heap.begin(), it);
+            remove(index);
+            return true;
+        }
+        return false;
+    }
+    
+    // Размер кучи
+    size_t size() const { return heap.size(); }
+    
+    // Проверка на пустоту
+    bool empty() const { return heap.empty(); }
+    
+    // Вывод кучи (для отладки)
+    void print() const {
+        std::cout << "Binary Heap: ";
+        for (const auto& elem : heap) {
+            std::cout << elem << " ";
+        }
+        std::cout << std::endl;
+    }
+};
+
+Биномиальная куча
+#include <iostream>
+#include <vector>
+#include <list>
+#include <algorithm>
+
+template<typename T>
+class BinomialHeap {
+private:
+    struct Node {
+        T key;
+        int degree;
+        Node* parent;
+        Node* child;
+        Node* sibling;
+        
+        Node(const T& k) : key(k), degree(0), parent(nullptr), 
+                          child(nullptr), sibling(nullptr) {}
+    };
+    
+    Node* head;
+    
+    // Слияние двух биномиальных деревьев одинакового порядка
+    Node* mergeTrees(Node* tree1, Node* tree2) {
+        if (tree1->key > tree2->key) {
+            std::swap(tree1, tree2);
+        }
+        
+        tree2->parent = tree1;
+        tree2->sibling = tree1->child;
+        tree1->child = tree2;
+        tree1->degree++;
+        
+        return tree1;
+    }
+    
+    // Слияние двух куч
+    Node* mergeHeaps(Node* heap1, Node* heap2) {
+        if (!heap1) return heap2;
+        if (!heap2) return heap1;
+        
+        Node* newHead = nullptr;
+        Node** current = &newHead;
+        
+        while (heap1 && heap2) {
+            if (heap1->degree <= heap2->degree) {
+                *current = heap1;
+                heap1 = heap1->sibling;
+            } else {
+                *current = heap2;
+                heap2 = heap2->sibling;
+            }
+            current = &((*current)->sibling);
+        }
+        
+        if (heap1) *current = heap1;
+        if (heap2) *current = heap2;
+        
+        return newHead;
+    }
+    
+    // Объединение куч после слияния
+    Node* unionHeaps(Node* heap1, Node* heap2) {
+        Node* newHeap = mergeHeaps(heap1, heap2);
+        if (!newHeap) return nullptr;
+        
+        Node* prev = nullptr;
+        Node* curr = newHeap;
+        Node* next = curr->sibling;
         
         while (next) {
             if (curr->degree != next->degree || 
@@ -105,110 +194,599 @@ public:
                 curr = next;
             } else if (curr->key <= next->key) {
                 curr->sibling = next->sibling;
-                linkTrees(curr, next);
+                mergeTrees(curr, next);
             } else {
-                if (!prev) head = next;
-                else prev->sibling = next;
-                linkTrees(next, curr);
+                if (!prev) {
+                    newHeap = next;
+                } else {
+                    prev->sibling = next;
+                }
+                mergeTrees(next, curr);
                 curr = next;
             }
             next = curr->sibling;
         }
+        
+        return newHeap;
     }
     
-    int extractMin() {
-        if (!head) throw std::runtime_error("Куча пуста");
-        
-        // Находим минимальный узел
-        BinomialNode* minNode = head;
-        BinomialNode* minPrev = nullptr;
-        BinomialNode* curr = head->sibling;
-        BinomialNode* prev = head;
+    // Реверс списка siblings
+    Node* reverseList(Node* node) {
+        Node* prev = nullptr;
+        Node* curr = node;
         
         while (curr) {
-            if (curr->key < minNode->key) {
-                minNode = curr;
-                minPrev = prev;
+            Node* next = curr->sibling;
+            curr->sibling = prev;
+            curr->parent = nullptr;
+            prev = curr;
+            curr = next;
+        }
+        
+        return prev;
+    }
+    
+    // Поиск узла с минимальным ключом
+    Node* findMinNode() const {
+        if (!head) return nullptr;
+        
+        Node* minNode = head;
+        Node* current = head->sibling;
+        
+        while (current) {
+            if (current->key < minNode->key) {
+                minNode = current;
             }
+            current = current->sibling;
+        }
+        
+        return minNode;
+    }
+    
+    // Удаление минимального узла
+    Node* extractMinNode() {
+        if (!head) return nullptr;
+        
+        Node* minNode = findMinNode();
+        Node* prev = nullptr;
+        Node* curr = head;
+        
+        // Находим предыдущий узел перед минимальным
+        while (curr != minNode) {
             prev = curr;
             curr = curr->sibling;
         }
         
-        // Удаляем минимальный узел
-        if (minPrev) minPrev->sibling = minNode->sibling;
-        else head = minNode->sibling;
-        
-        // Создаем кучу из детей
-        BinomialHeap childHeap;
-        BinomialNode* child = minNode->child;
-        while (child) {
-            BinomialNode* nextChild = child->sibling;
-            child->sibling = childHeap.head;
-            child->parent = nullptr;
-            childHeap.head = child;
-            child = nextChild;
+        // Удаляем минимальный узел из списка корней
+        if (prev) {
+            prev->sibling = minNode->sibling;
+        } else {
+            head = minNode->sibling;
         }
         
-        int minKey = minNode->key;
+        // Реверсируем список детей и объединяем с основной кучей
+        Node* childList = reverseList(minNode->child);
+        head = unionHeaps(head, childList);
+        
+        return minNode;
+    }
+
+public:
+    BinomialHeap() : head(nullptr) {}
+    
+    // Вставка элемента
+    void insert(const T& key) {
+        Node* newNode = new Node(key);
+        head = unionHeaps(head, newNode);
+    }
+    
+    // Получение минимального элемента
+    T getMin() const {
+        Node* minNode = findMinNode();
+        if (!minNode) {
+            throw std::runtime_error("Heap is empty");
+        }
+        return minNode->key;
+    }
+    
+    // Извлечение минимального элемента
+    T extractMin() {
+        Node* minNode = extractMinNode();
+        if (!minNode) {
+            throw std::runtime_error("Heap is empty");
+        }
+        
+        T minValue = minNode->key;
         delete minNode;
-        
-        // Объединяем с основной кучей
-        unionWith(childHeap);
-        
-        return minKey;
+        return minValue;
     }
     
-    int findMin() {
-        if (!head) throw std::runtime_error("Куча пуста");
-        
-        int minKey = head->key;
-        BinomialNode* curr = head->sibling;
-        
-        while (curr) {
-            if (curr->key < minKey) minKey = curr->key;
-            curr = curr->sibling;
+    // Слияние с другой биномиальной кучей
+    void merge(BinomialHeap& other) {
+        head = unionHeaps(head, other.head);
+        other.head = nullptr;
+    }
+    
+    // Проверка на пустоту
+    bool empty() const { return head == nullptr; }
+    
+    // Деструктор
+    ~BinomialHeap() {
+        while (head) {
+            extractMin();
         }
-        
-        return minKey;
     }
     
-    bool isEmpty() {
-        return head == nullptr;
+    // Вывод кучи (для отладки)
+    void printTree(Node* node, int depth = 0) const {
+        if (!node) return;
+        
+        for (int i = 0; i < depth; ++i) {
+            std::cout << "  ";
+        }
+        std::cout << node->key << " (degree: " << node->degree << ")" << std::endl;
+        
+        printTree(node->child, depth + 1);
+        printTree(node->sibling, depth);
+    }
+    
+    void print() const {
+        std::cout << "Binomial Heap:" << std::endl;
+        printTree(head);
     }
 };
 
-void binomialHeapExample() {
-    std::cout << "\n=== БИНОМИАЛЬНАЯ КУЧА ===" << std::endl;
+Пример использования
+int main() {
+    std::cout << "=== Бинарная куча ===" << std::endl;
+    BinaryHeap<int> binaryHeap;
     
-    BinomialHeap bh;
-    std::vector<int> elements = {10, 5, 15, 3, 7, 12, 1};
+    // Добавление элементов
+    binaryHeap.insert(5);
+    binaryHeap.insert(3);
+    binaryHeap.insert(8);
+    binaryHeap.insert(1);
+    binaryHeap.insert(4);
     
-    std::cout << "Добавляем элементы: ";
+    binaryHeap.print(); // Binary Heap: 1 3 8 5 4
+    
+    std::cout << "Min: " << binaryHeap.getMin() << std::endl; // Min: 1
+    
+    std::cout << "Extracted: " << binaryHeap.extractMin() << std::endl; // Extracted: 1
+    binaryHeap.print(); // Binary Heap: 3 4 8 5
+    
+    binaryHeap.removeByValue(4);
+    binaryHeap.print(); // Binary Heap: 3 5 8
+    
+    std::cout << "\n=== Биномиальная куча ===" << std::endl;
+    BinomialHeap<int> binomialHeap;
+    
+    binomialHeap.insert(10);
+    binomialHeap.insert(5);
+    binomialHeap.insert(15);
+    binomialHeap.insert(3);
+    binomialHeap.insert(7);
+    
+    binomialHeap.print();
+    
+    std::cout << "Min: " << binomialHeap.getMin() << std::endl;
+    std::cout << "Extracted: " << binomialHeap.extractMin() << std::endl;
+    
+    return 0;
+}
+
+Основная реализация Fibonacci Heap
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+#include <memory>
+
+template<typename T>
+class FibonacciHeap {
+private:
+    struct Node {
+        T key;
+        int degree;
+        bool marked;
+        Node* parent;
+        Node* child;
+        Node* left;
+        Node* right;
+        
+        Node(const T& k) : key(k), degree(0), marked(false),
+                          parent(nullptr), child(nullptr),
+                          left(this), right(this) {}
+    };
+    
+    Node* minNode;
+    int nodeCount;
+    
+    // Вспомогательные функции
+    void linkNodes(Node* node1, Node* node2) {
+        node1->right = node2;
+        node2->left = node1;
+    }
+    
+    void addNodeToRootList(Node* node) {
+        if (!minNode) {
+            minNode = node;
+            node->left = node;
+            node->right = node;
+        } else {
+            linkNodes(minNode->left, node);
+            linkNodes(node, minNode);
+        }
+    }
+    
+    void removeNodeFromRootList(Node* node) {
+        if (node->right == node) {
+            minNode = nullptr;
+        } else {
+            node->left->right = node->right;
+            node->right->left = node->left;
+            if (minNode == node) {
+                minNode = node->right;
+            }
+        }
+    }
+    
+    void addChild(Node* parent, Node* child) {
+        child->parent = parent;
+        parent->degree++;
+        
+        if (!parent->child) {
+            parent->child = child;
+            child->left = child;
+            child->right = child;
+        } else {
+            Node* firstChild = parent->child;
+            linkNodes(firstChild->left, child);
+            linkNodes(child, firstChild);
+        }
+    }
+    
+    void removeChild(Node* parent, Node* child) {
+        if (parent->child == child && child->right == child) {
+            parent->child = nullptr;
+        } else {
+            child->left->right = child->right;
+            child->right->left = child->left;
+            if (parent->child == child) {
+                parent->child = child->right;
+            }
+        }
+        child->parent = nullptr;
+        parent->degree--;
+    }
+    
+    void consolidate() {
+        if (!minNode) return;
+        
+        int maxDegree = static_cast<int>(std::log(nodeCount) / std::log(1.618)) + 1;
+        std::vector<Node*> degreeTable(maxDegree, nullptr);
+        
+        std::vector<Node*> nodes;
+        Node* current = minNode;
+        
+        // Собираем все корневые узлы
+        do {
+            nodes.push_back(current);
+            current = current->right;
+        } while (current != minNode);
+        
+        for (Node* node : nodes) {
+            int degree = node->degree;
+            
+            while (degreeTable[degree] != nullptr) {
+                Node* other = degreeTable[degree];
+                
+                if (node->key > other->key) {
+                    std::swap(node, other);
+                }
+                
+                // Делаем other дочерним узлом node
+                removeNodeFromRootList(other);
+                addChild(node, other);
+                other->marked = false;
+                
+                degreeTable[degree] = nullptr;
+                degree++;
+                
+                if (degree >= maxDegree) {
+                    degreeTable.resize(degree + 1, nullptr);
+                }
+            }
+            
+            degreeTable[degree] = node;
+        }
+        
+        // Восстанавливаем minNode
+        minNode = nullptr;
+        for (Node* node : degreeTable) {
+            if (node) {
+                if (!minNode) {
+                    minNode = node;
+                    node->left = node;
+                    node->right = node;
+                } else {
+                    addNodeToRootList(node);
+                    if (node->key < minNode->key) {
+                        minNode = node;
+                    }
+                }
+            }
+        }
+    }
+    
+    void cut(Node* node, Node* parent) {
+        removeChild(parent, node);
+        addNodeToRootList(node);
+        node->marked = false;
+    }
+    
+    void cascadingCut(Node* node) {
+        Node* parent = node->parent;
+        if (parent) {
+            if (!node->marked) {
+                node->marked = true;
+            } else {
+                cut(node, parent);
+                cascadingCut(parent);
+            }
+        }
+    }
+
+public:
+    FibonacciHeap() : minNode(nullptr), nodeCount(0) {}
+    
+    // Вставка элемента
+    void insert(const T& key) {
+        Node* newNode = new Node(key);
+        addNodeToRootList(newNode);
+        
+        if (!minNode || key < minNode->key) {
+            minNode = newNode;
+        }
+        
+        nodeCount++;
+    }
+    
+    // Получение минимального элемента
+    T getMinimum() const {
+        if (!minNode) {
+            throw std::runtime_error("Heap is empty");
+        }
+        return minNode->key;
+    }
+    
+    // Извлечение минимального элемента
+    T extractMinimum() {
+        if (!minNode) {
+            throw std::runtime_error("Heap is empty");
+        }
+        
+        Node* min = minNode;
+        T minValue = min->key;
+        
+        // Добавляем детей min в корневой список
+        if (min->child) {
+            Node* child = min->child;
+            do {
+                Node* nextChild = child->right;
+                addNodeToRootList(child);
+                child->parent = nullptr;
+                child = nextChild;
+            } while (child != min->child);
+        }
+        
+        // Удаляем min из корневого списка
+        removeNodeFromRootList(min);
+        
+        if (min == min->right) {
+            minNode = nullptr;
+        } else {
+            minNode = min->right;
+            consolidate();
+        }
+        
+        delete min;
+        nodeCount--;
+        
+        return minValue;
+    }
+    
+    // Уменьшение ключа
+    void decreaseKey(Node* node, const T& newKey) {
+        if (newKey > node->key) {
+            throw std::invalid_argument("New key is greater than current key");
+        }
+        
+        node->key = newKey;
+        Node* parent = node->parent;
+        
+        if (parent && node->key < parent->key) {
+            cut(node, parent);
+            cascadingCut(parent);
+        }
+        
+        if (node->key < minNode->key) {
+            minNode = node;
+        }
+    }
+    
+    // Удаление узла
+    void remove(Node* node) {
+        decreaseKey(node, std::numeric_limits<T>::min());
+        extractMinimum();
+    }
+    
+    // Слияние с другой кучей Фибоначчи
+    void merge(FibonacciHeap& other) {
+        if (!other.minNode) return;
+        
+        if (!minNode) {
+            minNode = other.minNode;
+        } else {
+            // Соединяем два циклических списка
+            Node* thisLeft = minNode->left;
+            Node* otherLeft = other.minNode->left;
+            
+            thisLeft->right = other.minNode;
+            other.minNode->left = thisLeft;
+            minNode->left = otherLeft;
+            otherLeft->right = minNode;
+            
+            if (other.minNode->key < minNode->key) {
+                minNode = other.minNode;
+            }
+        }
+        
+        nodeCount += other.nodeCount;
+        other.minNode = nullptr;
+        other.nodeCount = 0;
+    }
+    
+    // Размер кучи
+    int size() const { return nodeCount; }
+    
+    // Проверка на пустоту
+    bool empty() const { return nodeCount == 0; }
+    
+    // Создание узла (для внешнего использования в decreaseKey)
+    class NodeHandle {
+    private:
+        Node* node;
+        explicit NodeHandle(Node* n) : node(n) {}
+        friend class FibonacciHeap;
+        
+    public:
+        NodeHandle() : node(nullptr) {}
+        T getKey() const { return node->key; }
+    };
+    
+    NodeHandle insertWithHandle(const T& key) {
+        Node* newNode = new Node(key);
+        addNodeToRootList(newNode);
+        
+        if (!minNode || key < minNode->key) {
+            minNode = newNode;
+        }
+        
+        nodeCount++;
+        return NodeHandle(newNode);
+    }
+    
+    // Деструктор
+    ~FibonacciHeap() {
+        while (!empty()) {
+            extractMinimum();
+        }
+    }
+};
+
+Пример использования и тестирования
+#include <random>
+#include <chrono>
+
+void demonstrateFibonacciHeap() {
+    std::cout << "=== Fibonacci Heap Demonstration ===" << std::endl;
+    
+    VisualizableFibonacciHeap<int> fibHeap;
+    
+    // Вставка элементов
+    std::cout << "\n1. Inserting elements..." << std::endl;
+    std::vector<int> elements = {23, 7, 3, 17, 24, 18, 52, 38, 30, 26, 46, 39, 41, 35};
+    
+    std::vector<typename FibonacciHeap<int>::NodeHandle> handles;
+    
     for (int elem : elements) {
-        std::cout << elem << " ";
-        bh.insert(elem);
+        auto handle = fibHeap.insertWithHandle(elem);
+        handles.push_back(handle);
+        std::cout << "Inserted: " << elem << std::endl;
     }
-    std::cout << std::endl;
     
-    std::cout << "Минимальный элемент: " << bh.findMin() << std::endl;
+    fibHeap.printDetailed();
+    std::cout << "Minimum: " << fibHeap.getMinimum() << std::endl;
     
-    int minVal = bh.extractMin();
-    std::cout << "Извлечен минимальный элемент: " << minVal << std::endl;
-    std::cout << "Новый минимальный элемент: " << bh.findMin() << std::endl;
+    // Уменьшение ключа
+    std::cout << "\n2. Decreasing key..." << std::endl;
+    std::cout << "Decreasing 46 to 1..." << std::endl;
+    fibHeap.decreaseKey(handles[10], 1);
+    std::cout << "New minimum: " << fibHeap.getMinimum() << std::endl;
     
-    bh.insert(2);
-    bh.insert(8);
-    std::cout << "После добавления 2 и 8, минимальный: " << bh.findMin() << std::endl;
-    
-    std::cout << "Извлекаем все элементы по порядку: ";
-    while (!bh.isEmpty()) {
-        std::cout << bh.extractMin() << " ";
+    // Извлечение минимумов
+    std::cout << "\n3. Extracting minimum elements..." << std::endl;
+    while (!fibHeap.empty()) {
+        int minVal = fibHeap.extractMinimum();
+        std::cout << "Extracted: " << minVal << std::endl;
+        
+        if (!fibHeap.empty()) {
+            std::cout << "New minimum: " << fibHeap.getMinimum() << std::endl;
+        }
     }
-    std::cout << std::endl;
+}
+
+void performanceTest() {
+    std::cout << "\n=== Performance Test ===" << std::endl;
+    
+    FibonacciHeap<int> heap;
+    const int NUM_ELEMENTS = 1000;
+    
+    auto start = std::chrono::high_resolution_clock::now();
+    
+    // Множественные вставки
+    for (int i = 0; i < NUM_ELEMENTS; ++i) {
+        heap.insert(rand() % 1000);
+    }
+    
+    auto insertTime = std::chrono::high_resolution_clock::now();
+    
+    // Извлечение всех элементов
+    while (!heap.empty()) {
+        heap.extractMinimum();
+    }
+    
+    auto extractTime = std::chrono::high_resolution_clock::now();
+    
+    auto insertDuration = std::chrono::duration_cast<std::chrono::microseconds>(
+        insertTime - start);
+    auto extractDuration = std::chrono::duration_cast<std::chrono::microseconds>(
+        extractTime - insertTime);
+    
+    std::cout << "Insertion time for " << NUM_ELEMENTS << " elements: " 
+              << insertDuration.count() << " μs" << std::endl;
+    std::cout << "Extraction time for " << NUM_ELEMENTS << " elements: " 
+              << extractDuration.count() << " μs" << std::endl;
 }
 
 int main() {
-    binaryHeapExample();
-    binomialHeapExample();
+    try {
+        demonstrateFibonacciHeap();
+        performanceTest();
+        
+        // Дополнительный пример с merge
+        std::cout << "\n=== Merge Test ===" << std::endl;
+        
+        FibonacciHeap<int> heap1, heap2;
+        
+        heap1.insert(5);
+        heap1.insert(3);
+        heap1.insert(8);
+        
+        heap2.insert(2);
+        heap2.insert(7);
+        heap2.insert(4);
+        
+        std::cout << "Heap1 min: " << heap1.getMinimum() << std::endl;
+        std::cout << "Heap2 min: " << heap2.getMinimum() << std::endl;
+        
+        heap1.merge(heap2);
+        std::cout << "After merge - min: " << heap1.getMinimum() << std::endl;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+    
     return 0;
 }
