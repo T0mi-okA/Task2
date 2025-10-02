@@ -1,0 +1,247 @@
+import java.util.*;
+
+public class HeapExamples {
+    
+    // Бинарная куча с использованием PriorityQueue
+    static void binaryHeapExample() {
+        System.out.println("=== БИНАРНАЯ КУЧА ===");
+        
+        // Создание мин-кучи
+        PriorityQueue<Integer> minHeap = new PriorityQueue<>();
+        
+        int[] data = {5, 3, 8, 1, 2, 7};
+        
+        // Добавление элементов
+        for (int item : data) {
+            minHeap.add(item);
+            System.out.println("Добавлен элемент: " + item);
+        }
+        
+        System.out.println("Размер кучи: " + minHeap.size());
+        System.out.println("Минимальный элемент: " + minHeap.peek());
+        
+        // Извлечение элементов
+        System.out.print("Извлечение элементов в порядке возрастания: ");
+        while (!minHeap.isEmpty()) {
+            System.out.print(minHeap.poll() + " ");
+        }
+        System.out.println();
+    }
+    
+    // Биномиальная куча
+    static class BinomialNode {
+        int key;
+        int degree;
+        BinomialNode parent;
+        BinomialNode child;
+        BinomialNode sibling;
+        
+        public BinomialNode(int key) {
+            this.key = key;
+            this.degree = 0;
+            this.parent = null;
+            this.child = null;
+            this.sibling = null;
+        }
+        
+        @Override
+        public String toString() {
+            return "BinomialNode{key=" + key + ", degree=" + degree + "}";
+        }
+    }
+    
+    static class BinomialHeap {
+        private BinomialNode head;
+        
+        public BinomialHeap() {
+            head = null;
+        }
+        
+        public boolean isEmpty() {
+            return head == null;
+        }
+        
+        public void insert(int key) {
+            BinomialHeap tempHeap = new BinomialHeap();
+            tempHeap.head = new BinomialNode(key);
+            union(tempHeap);
+        }
+        
+        private BinomialNode mergeHeaps(BinomialNode h1, BinomialNode h2) {
+            if (h1 == null) return h2;
+            if (h2 == null) return h1;
+            
+            BinomialNode result = null;
+            BinomialNode last = null;
+            BinomialNode current1 = h1;
+            BinomialNode current2 = h2;
+            
+            while (current1 != null && current2 != null) {
+                if (current1.degree <= current2.degree) {
+                    if (result == null) {
+                        result = current1;
+                        last = current1;
+                    } else {
+                        last.sibling = current1;
+                        last = current1;
+                    }
+                    current1 = current1.sibling;
+                } else {
+                    if (result == null) {
+                        result = current2;
+                        last = current2;
+                    } else {
+                        last.sibling = current2;
+                        last = current2;
+                    }
+                    current2 = current2.sibling;
+                }
+            }
+            
+            if (current1 != null) {
+                last.sibling = current1;
+            } else {
+                last.sibling = current2;
+            }
+            
+            return result;
+        }
+        
+        private void linkTrees(BinomialNode parent, BinomialNode child) {
+            child.parent = parent;
+            child.sibling = parent.child;
+            parent.child = child;
+            parent.degree++;
+        }
+        
+        public void union(BinomialHeap other) {
+            head = mergeHeaps(head, other.head);
+            other.head = null;
+            
+            if (head == null) return;
+            
+            BinomialNode prev = null;
+            BinomialNode curr = head;
+            BinomialNode next = curr.sibling;
+            
+            while (next != null) {
+                if (curr.degree != next.degree || 
+                    (next.sibling != null && next.sibling.degree == curr.degree)) {
+                    prev = curr;
+                    curr = next;
+                } else if (curr.key <= next.key) {
+                    curr.sibling = next.sibling;
+                    linkTrees(curr, next);
+                } else {
+                    if (prev == null) {
+                        head = next;
+                    } else {
+                        prev.sibling = next;
+                    }
+                    linkTrees(next, curr);
+                    curr = next;
+                }
+                next = curr.sibling;
+            }
+        }
+        
+        public int extractMin() {
+            if (head == null) {
+                throw new NoSuchElementException("Куча пуста");
+            }
+            
+            // Находим минимальный узел
+            BinomialNode minNode = head;
+            BinomialNode minPrev = null;
+            BinomialNode curr = head.sibling;
+            BinomialNode prev = head;
+            
+            while (curr != null) {
+                if (curr.key < minNode.key) {
+                    minNode = curr;
+                    minPrev = prev;
+                }
+                prev = curr;
+                curr = curr.sibling;
+            }
+            
+            // Удаляем минимальный узел
+            if (minPrev != null) {
+                minPrev.sibling = minNode.sibling;
+            } else {
+                head = minNode.sibling;
+            }
+            
+            // Создаем кучу из детей
+            BinomialHeap childHeap = new BinomialHeap();
+            BinomialNode child = minNode.child;
+            while (child != null) {
+                BinomialNode nextChild = child.sibling;
+                child.sibling = childHeap.head;
+                child.parent = null;
+                childHeap.head = child;
+                child = nextChild;
+            }
+            
+            int minKey = minNode.key;
+            
+            // Объединяем с основной кучей
+            union(childHeap);
+            
+            return minKey;
+        }
+        
+        public int findMin() {
+            if (head == null) {
+                throw new NoSuchElementException("Куча пуста");
+            }
+            
+            int minKey = head.key;
+            BinomialNode curr = head.sibling;
+            
+            while (curr != null) {
+                if (curr.key < minKey) {
+                    minKey = curr.key;
+                }
+                curr = curr.sibling;
+            }
+            
+            return minKey;
+        }
+    }
+    
+    static void binomialHeapExample() {
+        System.out.println("\n=== БИНОМИАЛЬНАЯ КУЧА ===");
+        
+        BinomialHeap bh = new BinomialHeap();
+        int[] elements = {10, 5, 15, 3, 7, 12, 1};
+        
+        System.out.print("Добавляем элементы: ");
+        for (int elem : elements) {
+            System.out.print(elem + " ");
+            bh.insert(elem);
+        }
+        System.out.println();
+        
+        System.out.println("Минимальный элемент: " + bh.findMin());
+        
+        int minVal = bh.extractMin();
+        System.out.println("Извлечен минимальный элемент: " + minVal);
+        System.out.println("Новый минимальный элемент: " + bh.findMin());
+        
+        bh.insert(2);
+        bh.insert(8);
+        System.out.println("После добавления 2 и 8, минимальный: " + bh.findMin());
+        
+        System.out.print("Извлекаем все элементы по порядку: ");
+        while (!bh.isEmpty()) {
+            System.out.print(bh.extractMin() + " ");
+        }
+        System.out.println();
+    }
+    
+    public static void main(String[] args) {
+        binaryHeapExample();
+        binomialHeapExample();
+    }
+}
