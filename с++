@@ -1,4 +1,4 @@
-Бина
+Бинарная куча
 
 #include <iostream>
 #include <vector>
